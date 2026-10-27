@@ -1,0 +1,568 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CSM Workload & Book-of-Business Balancer</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--ink:#1d2433;--mut:#667085;--line:#e3e6ec;--acc:#2f5bea;--red:#c0392b;--amb:#d68910;--grn:#1e8449;--blu:#2e6da4;--soft:#eef1f7}
+@media (prefers-color-scheme:dark){:root{--bg:#12151c;--card:#1a1f2a;--ink:#e8ebf2;--mut:#9aa4b5;--line:#2b3242;--acc:#6f8cff;--red:#e8675a;--amb:#e5a63a;--grn:#4cb073;--blu:#6aa6e0;--soft:#232a38}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{padding:18px 24px 6px}
+h1{margin:0;font-size:21px}
+.sub{color:var(--mut);margin-top:2px}
+.wrap{display:grid;grid-template-columns:290px 1fr;gap:16px;padding:12px 24px 40px;align-items:start}
+@media (max-width:980px){.wrap{grid-template-columns:1fr}}
+.side{position:sticky;top:8px;max-height:calc(100vh - 16px);overflow:auto}
+@media (max-width:980px){.side{position:static;max-height:none}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.side .card{margin-bottom:12px}
+h3{margin:0 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--mut)}
+label{display:block;margin:8px 0 2px;font-size:12px;color:var(--mut)}
+label b{color:var(--ink);float:right}
+input[type=range]{width:100%}
+input[type=number],input[type=text],select{width:100%;padding:5px 7px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink);font:inherit}
+.chk{display:flex;gap:6px;align-items:center;margin:6px 0;color:var(--ink);font-size:13px}
+.chk input{margin:0}
+button{background:var(--acc);color:#fff;border:0;border-radius:6px;padding:6px 11px;font:inherit;cursor:pointer}
+button.ghost{background:var(--soft);color:var(--ink);border:1px solid var(--line)}
+button.warn{background:var(--red)}
+button.sm{padding:3px 8px;font-size:12px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.tab{background:var(--soft);color:var(--ink);border:1px solid var(--line)}
+.tab.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+.sec{display:none}.sec.on{display:block}
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:12px}
+.kpi .kl{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em}
+.kpi .kv{font-size:22px;font-weight:650;margin:2px 0}
+.kpi .ks{font-size:12px;color:var(--mut)}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(285px,1fr));gap:12px}
+.hd{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+.mut{color:var(--mut);font-size:12px}
+.chip{display:inline-block;padding:1px 8px;border-radius:99px;font-size:11px;font-weight:600;border:1px solid transparent;white-space:nowrap}
+.chip.over{background:#fbe9e7;color:var(--red)}.chip.str{background:#fdf1dc;color:#9a6408}.chip.ok{background:#e4f4ea;color:var(--grn)}.chip.under{background:#e3eefa;color:var(--blu)}
+.chip.n{background:var(--soft);color:var(--mut);border-color:var(--line)}
+.chip.warn{background:#fdf1dc;color:#9a6408}
+@media (prefers-color-scheme:dark){.chip.over{background:#3b2220}.chip.str{background:#3a2e17;color:#e5a63a}.chip.ok{background:#1b3226}.chip.under{background:#1d2c3d}.chip.warn{background:#3a2e17;color:#e5a63a}}
+.barwrap{position:relative;height:14px;background:var(--soft);border-radius:7px;overflow:hidden;margin:4px 0}
+.barwrap.thin{height:6px}
+.bar{height:100%;border-radius:7px}
+.b-over{background:var(--red)}.b-str{background:var(--amb)}.b-ok{background:var(--grn)}.b-under{background:var(--blu)}.b-base{background:#98a2b3}
+.mark{position:absolute;left:62.5%;top:0;bottom:0;width:2px;background:var(--ink);opacity:.45}
+.nums{display:flex;justify-content:space-between;font-size:12px;color:var(--mut);margin-bottom:6px}
+.nums b{color:var(--ink)}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:2px 10px;font-size:12px;margin:6px 0 8px}
+.g2 span{color:var(--mut)}.g2 b{float:right;color:var(--ink)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--mut);position:sticky;top:0;background:var(--card)}
+td.r,th.r{text-align:right}
+.scroll{max-height:560px;overflow:auto;border:1px solid var(--line);border-radius:8px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:10px}
+.row>div{flex:1;min-width:120px}
+.note{background:var(--soft);border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:10px;font-size:13px}
+.alert{background:#fbe9e7;color:var(--red);border:1px solid var(--red);border-radius:8px;padding:8px 10px;margin-bottom:10px}
+.up{color:var(--grn);font-weight:600}.dn{color:var(--red);font-weight:600}
+.best{background:rgba(47,91,234,.08)}
+</style>
+</head>
+<body>
+<header>
+  <h1>CSM Workload & Book-of-Business Balancer</h1>
+  <div class="sub">A what-if tool for resegmentations and rebalancing. Test where accounts can go before anyone gets a new book. Synthetic data.</div>
+</header>
+<div class="wrap">
+  <aside class="side">
+    <div class="card">
+      <h3>Workload model</h3>
+      <div class="mut">Account load = base points for its segment x (1 + complexity + risk + renewal uplifts).</div>
+      <label>Enterprise base points <b id="v_Enterprise"></b></label><input type="range" id="w_Enterprise" min="4" max="20" step="1">
+      <label>Mid-Market base points <b id="v_Mid-Market"></b></label><input type="range" id="w_Mid-Market" min="2" max="12" step="1">
+      <label>SMB base points <b id="v_SMB"></b></label><input type="range" id="w_SMB" min="1" max="6" step="0.5">
+      <label>Complexity uplift per level <b id="v_cx"></b></label><input type="range" id="w_cx" min="0" max="0.4" step="0.01">
+      <label>Risk uplift (low health) <b id="v_risk"></b></label><input type="range" id="w_risk" min="0" max="1.5" step="0.05">
+      <label>Renewal in 90 days uplift <b id="v_renew"></b></label><input type="range" id="w_renew" min="0" max="1" step="0.05">
+    </div>
+    <div class="card">
+      <h3>Flag thresholds</h3>
+      <label>Overloaded at or above <b id="v_over"></b></label><input type="range" id="t_over" min="105" max="140" step="1">
+      <label>Underused below <b id="v_under"></b></label><input type="range" id="t_under" min="40" max="95" step="1">
+    </div>
+    <div class="card">
+      <h3>Auto-balance rules</h3>
+      <div class="chk"><input type="checkbox" id="o_pod"><span>Respect pod specialty (segment fit)</span></div>
+      <div class="chk"><input type="checkbox" id="o_region"><span>Prefer same region</span></div>
+      <label>Disruption aversion <b id="v_disrupt"></b></label><input type="range" id="o_disrupt" min="0" max="3" step="0.1">
+      <label>Max account moves <b id="v_max"></b></label><input type="range" id="o_max" min="1" max="60" step="1">
+      <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">
+        <button onclick="runAuto()">Suggest rebalance</button>
+        <button class="ghost" onclick="resetAll()">Reset all</button>
+      </div>
+      <div class="mut" style="margin-top:6px">Locked accounts never move. Accounts with a renewal inside 90 days or health under 50 cost extra to move.</div>
+    </div>
+  </aside>
+
+  <main>
+    <div class="tabs" id="tabs">
+      <button class="tab on" data-tab="board">Scenario board</button>
+      <button class="tab" data-tab="sandbox">Account sandbox</button>
+      <button class="tab" data-tab="reseg">Resegmentation</button>
+      <button class="tab" data-tab="staff">Staffing events</button>
+      <button class="tab" data-tab="log">Change log & export</button>
+    </div>
+
+    <section class="sec on" id="s_board"><div id="boardOut"></div></section>
+
+    <section class="sec" id="s_sandbox">
+      <div class="card" style="margin-bottom:10px">
+        <div class="row">
+          <div><label>Owner</label><select id="fOwner"></select></div>
+          <div><label>Segment</label><select id="fSeg"><option value="">All</option><option>Enterprise</option><option>Mid-Market</option><option>SMB</option></select></div>
+          <div><label>Search</label><input type="text" id="fQ" placeholder="Account name"></div>
+          <div><label>Sort</label><select id="fSort"><option value="load">Load (high first)</option><option value="arr">ARR (high first)</option><option value="health">Health (low first)</option><option value="renew">Renewal (soonest)</option><option value="name">Name</option></select></div>
+        </div>
+        <div class="row" style="margin-bottom:0">
+          <div class="chk"><input type="checkbox" id="fChg"><span>Changed only</span></div>
+          <div class="chk"><input type="checkbox" id="fSens"><span>Sensitive only</span></div>
+          <div class="chk"><input type="checkbox" id="fMis"><span>Pod misfits only</span></div>
+        </div>
+      </div>
+      <div id="probeOut"></div>
+      <div id="sbOut"></div>
+    </section>
+
+    <section class="sec" id="s_reseg">
+      <div class="note">Use this tab when segment definitions change. Move the ARR cut-offs and see which accounts change segment, whether each pod has the capacity to absorb them, and where the changed accounts should go.</div>
+      <div class="card" style="margin-bottom:10px">
+        <div class="row">
+          <div><label>Enterprise starts at ARR <b id="v_thEnt"></b></label><input type="range" id="th_ent" min="100000" max="500000" step="10000"></div>
+          <div><label>Mid-Market starts at ARR <b id="v_thMm"></b></label><input type="range" id="th_mm" min="20000" max="150000" step="5000"></div>
+        </div>
+        <button class="ghost sm" onclick="resetTh()">Reset cut-offs</button>
+        <button class="sm" onclick="routePod()">Route changed accounts to their new pod</button>
+      </div>
+      <div id="resegOut"></div>
+    </section>
+
+    <section class="sec" id="s_staff">
+      <div class="note">Simulate a departure, a leave, or a new hire. Accounts from a removed CSM become unassigned until you rebalance.</div>
+      <div id="staffOut"></div>
+      <div class="card" style="margin-top:10px">
+        <h3>Add a hire</h3>
+        <div class="row">
+          <div><label>Name</label><input type="text" id="hName" placeholder="New CSM"></div>
+          <div><label>Pod</label><select id="hPod"><option>Enterprise</option><option>Mid-Market</option><option>SMB</option></select></div>
+          <div><label>Region</label><select id="hReg"><option>NA-East</option><option>NA-West</option><option>EMEA</option></select></div>
+          <div><label>Capacity points</label><input type="number" id="hCap" value="90" min="10"></div>
+          <div style="flex:0"><button onclick="addHire()">Add</button></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec" id="s_log"><div id="logOut"></div></section>
+  </main>
+</div>
+
+<script>
+/* ============================================================
+   DATA LAYER: synthetic. Replace loadData() with a real export
+   (CSM roster + account list) and nothing else needs to change.
+   Expected shapes:
+   csm  = {id,name,pod,region,share}  (optional cap = capacity points)
+   acct = {id,name,arr,health,renew,cx,region,owner}
+   ============================================================ */
+function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function loadData(){
+  const R=rng(11), ri=(a,b)=>Math.floor(R()*(b-a+1))+a;
+  const csms=[
+    {id:'c1',name:'Avery Chen',pod:'Enterprise',region:'NA-East',share:1},
+    {id:'c2',name:'Jordan Patel',pod:'Enterprise',region:'NA-West',share:1},
+    {id:'c3',name:'Maya Okafor',pod:'Enterprise',region:'EMEA',share:0.8},
+    {id:'c4',name:'Liam Brooks',pod:'Mid-Market',region:'NA-East',share:1},
+    {id:'c5',name:'Sofia Rivera',pod:'Mid-Market',region:'NA-West',share:1},
+    {id:'c6',name:'Noah Kim',pod:'Mid-Market',region:'EMEA',share:1},
+    {id:'c7',name:'Priya Nair',pod:'SMB',region:'NA-East',share:1},
+    {id:'c8',name:'Ethan Walsh',pod:'SMB',region:'NA-West',share:1}
+  ];
+  const P=['Northwind','Apex','Bluepeak','Cedar','Delta','Evergreen','Falcon','Granite','Harbor','Ironwood','Juniper','Keystone','Lumen','Meridian','Nimbus','Orbit','Pioneer','Quartz','Redwood','Summit','Topaz','Unity','Vertex','Willow','Zenith'];
+  const X=['Labs','Systems','Group','Health','Logistics','Retail','Financial','Media','Energy','Works'];
+  const spec=[['Enterprise',20,250000,900000,3,5,[.5,.32,.18]],['Mid-Market',40,62000,240000,2,4,[.45,.33,.22]],['SMB',70,9000,58000,1,3,[.6,.4]]];
+  const accts=[];let i=0;
+  for(const [pod,n,lo,hi,c1,c2,wts] of spec){
+    const pc=csms.filter(c=>c.pod===pod);
+    for(let k=0;k<n;k++){
+      const r=(k+0.5)/n;let j=0,acc=0;
+      for(j=0;j<wts.length;j++){acc+=wts[j];if(r<=acc)break}
+      const o=pc[Math.min(j,pc.length-1)];
+      accts.push({id:'a'+i,name:P[i%25]+' '+X[Math.floor(i/25)%10],
+        arr:Math.round((lo+(hi-lo)*Math.pow(R(),1.6))/1000)*1000,
+        health:R()<0.28?ri(25,55):ri(58,96),renew:ri(8,365),cx:ri(c1,c2),
+        region:R()<0.75?o.region:['NA-East','NA-West','EMEA'][ri(0,2)],owner:o.id});
+      i++;
+    }
+  }
+  return {csms,accts};
+}
+
+/* ============================================================
+   LOGIC LAYER
+   ============================================================ */
+const PODS=['Enterprise','Mid-Market','SMB'];
+const DEF_TH={ent:250000,mm:60000};
+const S={csms:[],accts:[],
+  w:{Enterprise:10,'Mid-Market':5,SMB:2,cx:0.15,risk:0.5,renew:0.25},
+  over:115,under:70,th:{...DEF_TH},
+  opt:{pod:true,region:true,disrupt:1,max:25},
+  probe:null,reasons:{}};
+const $=id=>document.getElementById(id);
+const segOf=(arr,t)=>arr>=t.ent?'Enterprise':arr>=t.mm?'Mid-Market':'SMB';
+const seg=a=>segOf(a.arr,S.th);
+const sens=a=>a.renew<=90||a.health<50;
+const loadOf=(a,sg)=>{const w=S.w;return w[sg]*(1+w.cx*(a.cx-1)+w.risk*Math.max(0,70-a.health)/70+(a.renew<=90?w.renew:0))};
+const money=x=>x>=1e6?'$'+(x/1e6).toFixed(2)+'M':'$'+Math.round(x/1e3)+'K';
+const pct=u=>Math.round(u*100)+'%';
+const statusOf=u=>u*100>=S.over?'over':u>1?'str':u*100>=S.under?'ok':'under';
+const SLAB={over:'Overloaded',str:'Stretched',ok:'Healthy',under:'Underused'};
+const chip=(c,t)=>`<span class="chip ${c}">${t}</span>`;
+const csmName=id=>{const c=S.csms.find(x=>x.id===id);return c?c.name:'Unassigned'};
+
+function init(){
+  const d=loadData();S.csms=d.csms;
+  S.accts=d.accts.map(a=>({...a,base:a.owner,seg0:segOf(a.arr,DEF_TH),locked:false}));
+  const need=S.csms.some(c=>c.cap==null);
+  if(need){
+    const tot=S.accts.reduce((s,a)=>s+loadOf(a,a.seg0),0),sh=S.csms.reduce((s,c)=>s+c.share,0);
+    S.csms.forEach(c=>{c.cap=Math.round(c.share*tot/sh/0.97)});
+  }
+  S.csms.forEach(c=>{c.cap0=c.cap;c.active=true;c.orig=true});
+}
+
+function balOf(loads,csms){
+  const u=loads.map((x,i)=>x/csms[i].cap),m=u.reduce((s,x)=>s+x,0)/(u.length||1);
+  return u.reduce((s,x)=>s+(x-m)*(x-m),0)*100;
+}
+
+function stats(mode){
+  const base=mode==='base';
+  const rows=S.csms.filter(c=>base?c.orig:c.active).map(c=>({c,cap:base?c.cap0:c.cap,load:0,n:0,arr:0,risk:0,neg:0,mis:0,reg:0,accts:[]}));
+  const by=Object.fromEntries(rows.map(r=>[r.c.id,r]));
+  let un=0,unArr=0;
+  for(const a of S.accts){
+    const r=by[base?a.base:a.owner],sg=base?a.seg0:seg(a);
+    if(!r){un++;unArr+=a.arr;continue}
+    r.load+=loadOf(a,sg);r.n++;r.arr+=a.arr;r.accts.push({a,sg});
+    if(a.health<50||a.renew<=60)r.risk+=a.arr;
+    if(r.c.pod!==sg)r.mis++;
+    if(r.c.region!==a.region)r.reg++;
+  }
+  rows.forEach(r=>{
+    r.util=r.load/r.cap;
+    r.neg=r.util>1.05?r.accts.filter(x=>x.a.health<50||x.a.renew<=60).length:0;
+  });
+  const u=rows.map(r=>r.util),m=u.reduce((s,x)=>s+x,0)/(u.length||1);
+  const sd=Math.sqrt(u.reduce((s,x)=>s+(x-m)*(x-m),0)/(u.length||1));
+  return {rows,un,unArr,mean:m,sd,
+    balance:Math.max(0,Math.round(100-sd*250)),
+    over:rows.filter(r=>r.util*100>=S.over).length,
+    under:rows.filter(r=>r.util*100<S.under).length,
+    mis:rows.reduce((s,r)=>s+r.mis,0),reg:rows.reduce((s,r)=>s+r.reg,0)};
+}
+
+function moveCost(a){return S.opt.disrupt*(0.4+(sens(a)?1.2:0)+a.arr/1e6)}
+function pen(a,c){let p=0;if(S.opt.pod&&c.pod!==seg(a))p+=3;if(S.opt.region&&c.region!==a.region)p+=1;return p}
+
+function autoBalance(){
+  const act=S.csms.filter(c=>c.active);if(!act.length)return 0;
+  const idx=Object.fromEntries(act.map((c,i)=>[c.id,i]));
+  const load=act.map(()=>0);
+  for(const a of S.accts)if(a.owner in idx&&a.owner!=='')load[idx[a.owner]]+=loadOf(a,seg(a));
+  const moved=new Set();let n=0;
+  for(const a of S.accts.filter(a=>!(a.owner in idx)||a.owner==='')){
+    const l=loadOf(a,seg(a));let best=null;
+    act.forEach((c,j)=>{const L=load.slice();L[j]+=l;const s=balOf(L,act)+pen(a,c);if(!best||s<best.s)best={s,j}});
+    load[best.j]+=l;a.owner=act[best.j].id;moved.add(a.id);n++;
+    S.reasons[a.id]='Was unassigned, placed with best-fit CSM';
+  }
+  for(let k=0;k<S.opt.max;k++){
+    const cur=balOf(load,act);let best=null;
+    for(const a of S.accts){
+      if(a.locked||moved.has(a.id))continue;
+      const i=idx[a.owner];if(i==null)continue;
+      const l=loadOf(a,seg(a)),pi=pen(a,act[i]),mc=moveCost(a);
+      for(let j=0;j<act.length;j++){
+        if(j===i)continue;
+        const L=load.slice();L[i]-=l;L[j]+=l;
+        const d=balOf(L,act)-cur+(pen(a,act[j])-pi)+mc;
+        if(d<-0.05&&(!best||d<best.d))best={a,i,j,l,d};
+      }
+    }
+    if(!best)break;
+    load[best.i]-=best.l;load[best.j]+=best.l;
+    S.reasons[best.a.id]='Rebalance: '+act[best.i].name+' to '+act[best.j].name;
+    best.a.owner=act[best.j].id;moved.add(best.a.id);n++;
+  }
+  return n;
+}
+
+function routeToPod(){
+  const act=S.csms.filter(c=>c.active);
+  const load=Object.fromEntries(act.map(c=>[c.id,0]));
+  for(const a of S.accts)if(a.owner in load)load[a.owner]+=loadOf(a,seg(a));
+  let n=0;
+  for(const a of S.accts){
+    if(a.locked)continue;
+    const sg=seg(a),o=act.find(c=>c.id===a.owner);
+    if(o&&o.pod===sg)continue;
+    const cand=act.filter(c=>c.pod===sg);if(!cand.length)continue;
+    const l=loadOf(a,sg);let best=null;
+    for(const c of cand){
+      const s=(load[c.id]+l)/c.cap+(c.region===a.region?0:0.15);
+      if(!best||s<best.s)best={s,c};
+    }
+    if(o)load[o.id]-=l;
+    load[best.c.id]+=l;a.owner=best.c.id;n++;
+    S.reasons[a.id]='Resegmented to '+sg+', routed to '+best.c.name;
+  }
+  return n;
+}
+
+function probeRows(a){
+  const now=stats('now'),rows=now.rows,act=rows.map(r=>r.c);
+  const loads=rows.map(r=>r.load),l=loadOf(a,seg(a)),cur=balOf(loads,act);
+  const oi=rows.findIndex(r=>r.c.id===a.owner);
+  const out=rows.map((r,j)=>{
+    const L=loads.slice();if(oi>=0&&oi!==j)L[oi]-=l;if(oi!==j)L[j]+=l;
+    const hold=oi===j;
+    const dBal=balOf(L,act)-cur;
+    const dPen=hold?0:pen(a,r.c)-(oi>=0?pen(a,act[oi]):0);
+    const score=hold?0:dBal+dPen+moveCost(a);
+    return {c:r.c,hold,before:r.util,after:L[j]/r.c.cap,donorAfter:oi>=0&&!hold?L[oi]/act[oi].cap:null,
+      pod:r.c.pod===seg(a),reg:r.c.region===a.region,dBal,score};
+  });
+  return out.sort((x,y)=>x.score-y.score);
+}
+
+/* ============================================================
+   UI
+   ============================================================ */
+function kpi(l,v,s){return `<div class="card kpi"><div class="kl">${l}</div><div class="kv">${v}</div><div class="ks">${s||''}</div></div>`}
+function delta(a,b,lowerBetter){
+  if(a===b)return `<span class="mut">no change</span>`;
+  const good=lowerBetter?b<a:b>a;
+  return `<span class="${good?'up':'dn'}">${a} to ${b}</span>`;
+}
+
+function renderBoard(){
+  const now=stats('now'),base=stats('base');
+  const moved=S.accts.filter(a=>a.owner!==a.base);
+  const mArr=moved.reduce((s,a)=>s+a.arr,0),mSens=moved.filter(sens).length;
+  let h='';
+  if(now.un)h+=`<div class="alert"><b>${now.un} unassigned accounts</b> (${money(now.unArr)} ARR) need an owner. <button class="sm" onclick="runAuto()">Auto-assign and rebalance</button></div>`;
+  h+=`<div class="kpis">`+
+    kpi('Balance score',`${base.balance} to ${now.balance}`,'100 = perfectly even utilization')+
+    kpi('Overloaded CSMs',delta(base.over,now.over,true),'at or above '+S.over+'%')+
+    kpi('Underused CSMs',delta(base.under,now.under,true),'below '+S.under+'%')+
+    kpi('Accounts moved',moved.length,money(mArr)+' ARR')+
+    kpi('Sensitive moves',mSens,'renewal under 90d or health under 50')+
+    kpi('Pod misfits',delta(base.mis,now.mis,true),'account segment vs CSM pod')+
+    kpi('Region mismatches',delta(base.reg,now.reg,true),'account vs CSM region')+
+    `</div>`;
+  h+=`<div class="mut" style="margin-bottom:8px">Colored bar is the scenario. Grey bar is the baseline. The vertical line marks 100% of capacity.</div><div class="cards">`;
+  h+=now.rows.map(r=>{
+    const b=base.rows.find(x=>x.c.id===r.c.id),st=statusOf(r.util),bu=b?b.util:0;
+    return `<div class="card">
+      <div class="hd"><b>${r.c.name}</b>${chip(st,SLAB[st])}<span class="mut">${r.c.pod} / ${r.c.region}</span></div>
+      <div class="barwrap"><div class="bar b-${st}" style="width:${Math.min(r.util/1.6,1)*100}%"></div><div class="mark"></div></div>
+      <div class="barwrap thin"><div class="bar b-base" style="width:${Math.min(bu/1.6,1)*100}%"></div><div class="mark"></div></div>
+      <div class="nums"><span>Scenario <b>${pct(r.util)}</b></span><span>Baseline <b>${b?pct(bu):'new hire'}</b></span></div>
+      <div class="g2">
+        <div><span>Accounts</span><b>${r.n}</b></div><div><span>ARR</span><b>${money(r.arr)}</b></div>
+        <div><span>At-risk ARR</span><b>${money(r.risk)}</b></div><div><span>Neglect exposure</span><b>${r.neg}</b></div>
+        <div><span>Pod misfits</span><b>${r.mis}</b></div><div><span>Region mismatch</span><b>${r.reg}</b></div>
+      </div>
+      <button class="ghost sm" onclick="viewBook('${r.c.id}')">View book</button>
+    </div>`}).join('');
+  h+=`</div><div class="mut" style="margin-top:10px">Neglect exposure counts at-risk accounts (health under 50 or renewal within 60 days) sitting in a book that is over 105% utilized.</div>`;
+  $('boardOut').innerHTML=h;
+}
+
+function ownerOptions(sel){
+  return `<option value="">Unassigned</option>`+S.csms.filter(c=>c.active).map(c=>`<option value="${c.id}"${c.id===sel?' selected':''}>${c.name} (${c.pod})</option>`).join('');
+}
+
+function renderSandbox(){
+  const fo=$('fOwner'),keep=fo.value;
+  fo.innerHTML=`<option value="">All</option><option value="__un">Unassigned</option>`+S.csms.filter(c=>c.active).map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  fo.value=[...fo.options].some(o=>o.value===keep)?keep:'';
+  const q=$('fQ').value.toLowerCase(),fs=$('fSeg').value,so=$('fSort').value;
+  const act=Object.fromEntries(S.csms.map(c=>[c.id,c]));
+  let list=S.accts.filter(a=>{
+    if(fo.value==='__un'&&a.owner)return false;
+    if(fo.value&&fo.value!=='__un'&&a.owner!==fo.value)return false;
+    if(fs&&seg(a)!==fs)return false;
+    if(q&&!a.name.toLowerCase().includes(q))return false;
+    if($('fChg').checked&&a.owner===a.base)return false;
+    if($('fSens').checked&&!sens(a))return false;
+    if($('fMis').checked){const o=act[a.owner];if(!o||o.pod===seg(a))return false}
+    return true;
+  });
+  const key={load:a=>-loadOf(a,seg(a)),arr:a=>-a.arr,health:a=>a.health,renew:a=>a.renew,name:a=>a.name};
+  list.sort((x,y)=>{const kx=key[so](x),ky=key[so](y);return kx<ky?-1:kx>ky?1:0});
+  $('sbOut').innerHTML=`<div class="mut" style="margin-bottom:6px">${list.length} accounts shown. Use "Where can it go?" to rank every CSM as a destination.</div>
+  <div class="scroll"><table><thead><tr><th>Account</th><th>Segment</th><th class="r">ARR</th><th class="r">Health</th><th class="r">Renewal</th><th class="r">Load</th><th>Region</th><th>Baseline</th><th>Owner</th><th>Lock</th><th>Flags</th><th></th></tr></thead><tbody>`+
+  list.map(a=>{
+    const sg=seg(a),o=act[a.owner],fl=[];
+    if(sg!==a.seg0)fl.push(chip('warn','Seg '+a.seg0+' to '+sg));
+    if(sens(a))fl.push(chip('n','Sensitive'));
+    if(o&&o.pod!==sg)fl.push(chip('warn','Pod misfit'));
+    if(a.owner!==a.base)fl.push(chip('under','Moved'));
+    return `<tr><td><b>${a.name}</b></td><td>${sg}</td><td class="r">${money(a.arr)}</td><td class="r">${a.health}</td><td class="r">${a.renew}d</td><td class="r">${loadOf(a,sg).toFixed(1)}</td><td>${a.region}</td><td>${csmName(a.base)}</td>
+    <td><select onchange="setOwner('${a.id}',this.value)" style="min-width:150px">${ownerOptions(a.owner)}</select></td>
+    <td><input type="checkbox" ${a.locked?'checked':''} onchange="toggleLock('${a.id}')"></td><td>${fl.join(' ')}</td>
+    <td><button class="ghost sm" onclick="setProbe('${a.id}')">Where can it go?</button></td></tr>`}).join('')+
+  `</tbody></table></div>`;
+  renderProbe();
+}
+
+function renderProbe(){
+  const a=S.accts.find(x=>x.id===S.probe);
+  if(!a){$('probeOut').innerHTML='';return}
+  const rows=probeRows(a);const bestMove=rows.find(r=>!r.hold);
+  $('probeOut').innerHTML=`<div class="card" style="margin-bottom:10px"><div class="hd"><b>Where can ${a.name} go?</b><span class="mut">${seg(a)} / ${money(a.arr)} / health ${a.health} / renews in ${a.renew}d / ${a.region} / currently ${csmName(a.owner)}</span>
+  <button class="ghost sm" onclick="setProbe(null)">Close</button></div>
+  <div class="scroll" style="max-height:300px"><table><thead><tr><th>Destination</th><th>Pod fit</th><th>Region</th><th class="r">Their load now</th><th class="r">Their load after</th><th class="r">Current owner after</th><th class="r">Balance change</th><th></th></tr></thead><tbody>`+
+  rows.map(r=>`<tr class="${bestMove&&r===bestMove&&r.score<0?'best':''}"><td><b>${r.c.name}</b> <span class="mut">${r.c.pod}</span>${r.hold?' '+chip('n','Current owner'):''}${bestMove&&r===bestMove&&r.score<0?' '+chip('under','Best fit'):''}</td>
+  <td>${r.pod?'Yes':'No'}</td><td>${r.reg?'Same':'Different'}</td><td class="r">${pct(r.before)}</td><td class="r">${r.hold?'-':pct(r.after)}</td><td class="r">${r.donorAfter==null?'-':pct(r.donorAfter)}</td>
+  <td class="r ${r.hold?'':r.dBal<0?'up':'dn'}">${r.hold?'-':(r.dBal<0?'':'+')+r.dBal.toFixed(1)}</td>
+  <td>${r.hold?'':`<button class="sm" onclick="setOwner('${a.id}','${r.c.id}')">Move here</button>`}</td></tr>`).join('')+
+  `</tbody></table></div><div class="mut" style="margin-top:6px">Balance change is the shift in utilization spread (negative is more even). The Best fit tag weighs balance, pod fit, region, and the cost of moving a sensitive account.</div></div>`;
+}
+
+function renderReseg(){
+  $('v_thEnt').textContent=money(S.th.ent);$('v_thMm').textContent=money(S.th.mm);
+  const cnt={},cntB={},mat={};
+  PODS.forEach(p=>{cnt[p]={n:0,arr:0,load:0};cntB[p]=0;mat[p]={}});
+  PODS.forEach(p=>PODS.forEach(q=>mat[p][q]=0));
+  const chg=[];
+  for(const a of S.accts){const sg=seg(a);cnt[sg].n++;cnt[sg].arr+=a.arr;cnt[sg].load+=loadOf(a,sg);cntB[a.seg0]++;mat[a.seg0][sg]++;if(sg!==a.seg0)chg.push(a)}
+  const act=S.csms.filter(c=>c.active),avg=act.reduce((s,c)=>s+c.cap,0)/(act.length||1);
+  let h=`<div class="kpis">`+kpi('Accounts changing segment',chg.length,money(chg.reduce((s,a)=>s+a.arr,0))+' ARR')+`</div>`;
+  h+=`<div class="card" style="margin-bottom:10px"><h3>Segment demand vs pod capacity</h3><table><thead><tr><th>Segment</th><th class="r">Accounts (before to after)</th><th class="r">ARR</th><th class="r">Demand (points)</th><th class="r">Pod capacity</th><th class="r">Pod utilization</th><th class="r">Headcount gap</th></tr></thead><tbody>`+
+  PODS.map(p=>{
+    const cap=act.filter(c=>c.pod===p).reduce((s,c)=>s+c.cap,0),u=cap?cnt[p].load/cap:0;
+    const gp=(cnt[p].load-cap)/avg;
+    return `<tr><td><b>${p}</b></td><td class="r">${cntB[p]} to ${cnt[p].n}</td><td class="r">${money(cnt[p].arr)}</td><td class="r">${cnt[p].load.toFixed(0)}</td><td class="r">${cap}</td><td class="r">${cap?chip(statusOf(u),pct(u)):'No CSMs'}</td><td class="r">${gp>0.05?'<span class="dn">Needs +'+gp.toFixed(1)+' CSM</span>':gp<-0.05?'<span class="up">'+Math.abs(gp).toFixed(1)+' CSM spare</span>':'Even'}</td></tr>`}).join('')+
+  `</tbody></table><div class="mut" style="margin-top:6px">Demand is the workload of every account in that segment, as if only that pod served them. A positive gap means the pod cannot absorb its segment without help.</div></div>`;
+  h+=`<div class="card" style="margin-bottom:10px"><h3>Segment shift matrix (from baseline, to new)</h3><table><thead><tr><th>From \\ To</th>${PODS.map(p=>`<th class="r">${p}</th>`).join('')}</tr></thead><tbody>`+
+  PODS.map(p=>`<tr><td><b>${p}</b></td>${PODS.map(q=>`<td class="r">${p===q?'<span class="mut">'+mat[p][q]+'</span>':mat[p][q]?'<b>'+mat[p][q]+'</b>':'0'}</td>`).join('')}</tr>`).join('')+`</tbody></table></div>`;
+  h+=`<div class="card"><h3>Accounts that change segment</h3>`+(chg.length?`<div class="scroll" style="max-height:320px"><table><thead><tr><th>Account</th><th>From</th><th>To</th><th class="r">ARR</th><th>Current owner</th><th>Owner pod</th><th></th></tr></thead><tbody>`+
+  chg.sort((x,y)=>y.arr-x.arr).map(a=>{const o=S.csms.find(c=>c.id===a.owner);return `<tr><td><b>${a.name}</b></td><td>${a.seg0}</td><td>${seg(a)}</td><td class="r">${money(a.arr)}</td><td>${csmName(a.owner)}</td><td>${o?(o.pod===seg(a)?chip('ok','Fits'):chip('warn',o.pod+' pod')):'-'}</td><td><button class="ghost sm" onclick="goProbe('${a.id}')">Where can it go?</button></td></tr>`}).join('')+`</tbody></table></div>`:`<div class="mut">Move the cut-offs above to see which accounts would change segment.</div>`)+`</div>`;
+  $('resegOut').innerHTML=h;
+}
+
+function renderStaff(){
+  const base=stats('base'),now=stats('now');
+  $('staffOut').innerHTML=`<div class="scroll"><table><thead><tr><th>CSM</th><th>Pod</th><th>Region</th><th class="r">Capacity points</th><th class="r">Accounts</th><th class="r">Utilization</th><th>Status</th><th></th></tr></thead><tbody>`+
+  S.csms.map(c=>{
+    const r=now.rows.find(x=>x.c.id===c.id);
+    return `<tr><td><b>${c.name}</b> ${c.orig?'':chip('under','New hire')}</td><td>${c.pod}</td><td>${c.region}</td>
+    <td class="r"><input type="number" min="10" value="${c.cap}" style="width:80px" onchange="setCap('${c.id}',this.value)"></td>
+    <td class="r">${r?r.n:'-'}</td><td class="r">${r?chip(statusOf(r.util),pct(r.util)):'-'}</td>
+    <td>${c.active?'Active':chip('over','Out')}</td>
+    <td>${c.active?`<button class="ghost sm" onclick="removeCsm('${c.id}')">Simulate departure or leave</button>`:`<button class="ghost sm" onclick="restoreCsm('${c.id}')">Restore</button>`}${c.orig?'':` <button class="ghost sm" onclick="dropHire('${c.id}')">Remove hire</button>`}</td></tr>`}).join('')+
+  `</tbody></table></div>`+(now.un?`<div class="alert" style="margin-top:10px"><b>${now.un} accounts</b> (${money(now.unArr)}) are unassigned. <button class="sm" onclick="runAuto()">Auto-assign and rebalance</button></div>`:'');
+}
+
+function movedList(){return S.accts.filter(a=>a.owner!==a.base)}
+function renderLog(){
+  const m=movedList(),now=stats('now'),base=stats('base');
+  const arr=m.reduce((s,a)=>s+a.arr,0);
+  $('logOut').innerHTML=`<div class="kpis">`+kpi('Accounts moved',m.length,money(arr)+' ARR')+kpi('Balance score',base.balance+' to '+now.balance,'')+kpi('Sensitive moves',m.filter(sens).length,'handle with care')+`</div>
+  <div class="row"><div style="flex:0"><button onclick="exportCsv()">Download scenario CSV</button></div><div style="flex:0"><button class="ghost" onclick="exportJson()">Download scenario JSON</button></div><div style="flex:0"><button class="ghost" onclick="copySummary()">Copy summary</button></div></div>
+  <div class="scroll"><table><thead><tr><th>Account</th><th>Segment</th><th class="r">ARR</th><th>From</th><th>To</th><th>Why</th><th>Flags</th></tr></thead><tbody>`+
+  (m.length?m.map(a=>`<tr><td><b>${a.name}</b></td><td>${seg(a)}</td><td class="r">${money(a.arr)}</td><td>${csmName(a.base)}</td><td>${csmName(a.owner)}</td><td>${S.reasons[a.id]||'Manual move'}</td><td>${sens(a)?chip('warn','Sensitive: plan a warm handoff'):''}</td></tr>`).join(''):`<tr><td colspan="7" class="mut">No changes yet. Move accounts in the sandbox or run a suggested rebalance.</td></tr>`)+`</tbody></table></div>`;
+}
+
+function renderAll(){
+  for(const k of Object.keys(S.w)){const e=$('v_'+k);if(e)e.textContent=k==='cx'||k==='risk'||k==='renew'?(+S.w[k]).toFixed(2):S.w[k]}
+  $('v_over').textContent=S.over+'%';$('v_under').textContent=S.under+'%';
+  $('v_disrupt').textContent=(+S.opt.disrupt).toFixed(1);$('v_max').textContent=S.opt.max;
+  renderBoard();renderSandbox();renderReseg();renderStaff();renderLog();
+}
+
+/* ---------- actions ---------- */
+function setOwner(id,v){const a=S.accts.find(x=>x.id===id);if(a.owner!==v){a.owner=v;S.reasons[id]='Manual move'}renderAll()}
+function toggleLock(id){const a=S.accts.find(x=>x.id===id);a.locked=!a.locked}
+function setProbe(id){S.probe=id;renderProbe()}
+function goProbe(id){showTab('sandbox');S.probe=id;renderAll()}
+function viewBook(id){showTab('sandbox');$('fOwner').value=id;renderSandbox()}
+function runAuto(){const n=autoBalance();renderAll();showTab('board');if(!n)alert('No further moves improve balance under the current rules.')}
+function routePod(){const n=routeToPod();renderAll();if(!n)alert('No accounts need re-routing.')}
+function resetTh(){S.th={...DEF_TH};$('th_ent').value=S.th.ent;$('th_mm').value=S.th.mm;renderAll()}
+function resetAll(){
+  S.accts.forEach(a=>{a.owner=a.base;a.locked=false});S.reasons={};S.probe=null;
+  S.csms=S.csms.filter(c=>c.orig);S.csms.forEach(c=>{c.active=true;c.cap=c.cap0});
+  resetTh();
+}
+function setCap(id,v){const c=S.csms.find(x=>x.id===id);c.cap=Math.max(10,+v||c.cap);renderAll()}
+function removeCsm(id){
+  S.csms.find(c=>c.id===id).active=false;
+  S.accts.forEach(a=>{if(a.owner===id){a.owner='';S.reasons[a.id]='Owner out, needs reassignment'}});renderAll();
+}
+function restoreCsm(id){
+  S.csms.find(c=>c.id===id).active=true;
+  S.accts.forEach(a=>{if(a.owner===''&&a.base===id){a.owner=id;delete S.reasons[a.id]}});renderAll();
+}
+function dropHire(id){
+  S.accts.forEach(a=>{if(a.owner===id)a.owner=''});S.csms=S.csms.filter(c=>c.id!==id);renderAll();
+}
+function addHire(){
+  const n=$('hName').value.trim()||'New CSM '+(S.csms.length-7);
+  S.csms.push({id:'h'+Date.now(),name:n,pod:$('hPod').value,region:$('hReg').value,share:1,cap:Math.max(10,+$('hCap').value||90),cap0:0,active:true,orig:false});
+  $('hName').value='';renderAll();
+}
+function dl(name,text,type){
+  const b=new Blob([text],{type}),u=URL.createObjectURL(b),l=document.createElement('a');
+  l.href=u;l.download=name;document.body.appendChild(l);l.click();l.remove();URL.revokeObjectURL(u);
+}
+function exportCsv(){
+  const q=s=>'"'+String(s).replace(/"/g,'""')+'"';
+  const rows=[['Account','Segment','ARR','Health','Renewal days','Region','Baseline owner','Scenario owner','Moved','Locked','Reason']];
+  S.accts.forEach(a=>rows.push([a.name,seg(a),a.arr,a.health,a.renew,a.region,csmName(a.base),csmName(a.owner),a.owner!==a.base?'Yes':'No',a.locked?'Yes':'No',S.reasons[a.id]||'']));
+  dl('csm-balancer-scenario.csv',rows.map(r=>r.map(q).join(',')).join('\n'),'text/csv');
+}
+function exportJson(){
+  dl('csm-balancer-scenario.json',JSON.stringify({thresholds:S.th,weights:S.w,rules:S.opt,csms:S.csms,moves:movedList().map(a=>({account:a.name,from:csmName(a.base),to:csmName(a.owner),reason:S.reasons[a.id]||'Manual move'}))},null,2),'application/json');
+}
+function copySummary(){
+  const n=stats('now'),b=stats('base'),m=movedList();
+  const t=`Rebalance scenario: balance score ${b.balance} to ${n.balance}; overloaded CSMs ${b.over} to ${n.over}; ${m.length} accounts moved (${money(m.reduce((s,a)=>s+a.arr,0))} ARR), ${m.filter(sens).length} sensitive. Segment cut-offs: Enterprise ${money(S.th.ent)}, Mid-Market ${money(S.th.mm)}.`;
+  if(navigator.clipboard)navigator.clipboard.writeText(t).then(()=>alert('Summary copied.'),()=>alert(t));else alert(t);
+}
+function showTab(t){
+  document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.tab===t));
+  document.querySelectorAll('.sec').forEach(s=>s.classList.toggle('on',s.id==='s_'+t));
+}
+
+/* ---------- wiring ---------- */
+function wire(){
+  document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
+  ['Enterprise','Mid-Market','SMB','cx','risk','renew'].forEach(k=>{
+    const e=$('w_'+k);e.value=S.w[k];e.oninput=()=>{S.w[k]=+e.value;renderAll()};
+  });
+  $('t_over').value=S.over;$('t_over').oninput=e=>{S.over=+e.target.value;renderAll()};
+  $('t_under').value=S.under;$('t_under').oninput=e=>{S.under=+e.target.value;renderAll()};
+  $('o_pod').checked=S.opt.pod;$('o_pod').onchange=e=>{S.opt.pod=e.target.checked};
+  $('o_region').checked=S.opt.region;$('o_region').onchange=e=>{S.opt.region=e.target.checked};
+  $('o_disrupt').value=S.opt.disrupt;$('o_disrupt').oninput=e=>{S.opt.disrupt=+e.target.value;renderAll()};
+  $('o_max').value=S.opt.max;$('o_max').oninput=e=>{S.opt.max=+e.target.value;renderAll()};
+  $('th_ent').value=S.th.ent;$('th_ent').oninput=e=>{S.th.ent=+e.target.value;if(S.th.mm>=S.th.ent){S.th.mm=S.th.ent-5000;$('th_mm').value=S.th.mm}renderAll()};
+  $('th_mm').value=S.th.mm;$('th_mm').oninput=e=>{S.th.mm=+e.target.value;if(S.th.mm>=S.th.ent){S.th.ent=S.th.mm+5000;$('th_ent').value=S.th.ent}renderAll()};
+  ['fOwner','fSeg','fSort','fChg','fSens','fMis'].forEach(id=>$(id).onchange=renderSandbox);
+  $('fQ').oninput=renderSandbox;
+}
+init();wire();renderAll();
+</script>
+</body>
+</html>
