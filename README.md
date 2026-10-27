@@ -2,7 +2,7 @@
 
 An interactive what-if tool for **resegmentations and book rebalancing**. Before anyone is handed a new book, test where accounts can go, see what it does to every CSM's load, and export the plan.
 
-Runs entirely in the browser from a single `index.html`. No build step, no backend. All data is synthetic.
+Runs entirely in the browser from a single `index.html`. No build step, no backend. All data is synthetic. Live Demo: https://melissamcgowan.github.io/CSM-Workload-Book-of-Business-Balancer/
 
 ## When to use it
 
@@ -59,11 +59,11 @@ Replace `loadData()` in `index.html` with a function that returns:
 }
 ```
 
-If you supply `cap` on each CSM, it is used as is. Otherwise capacity is derived from `share` so the team sits near 97% in aggregate.
+If you supply `cap` on each CSM, it is used as is. Otherwise, capacity is derived from `share`, so the team sits near 97% in aggregate.
 
 ## Run it
 
-Open `index.html` in a browser. To publish with GitHub Pages, put it in a repo, then Settings, Pages, deploy from the main branch root.
+Open `index.html` in a browser. 
 
 ## Notes
 
